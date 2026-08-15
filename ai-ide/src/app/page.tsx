@@ -3,7 +3,15 @@
 import * as React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BundledLanguage } from "shiki";
-import { type GroupImperativeHandle } from "react-resizable-panels";
+import {
+  type GroupImperativeHandle,
+  type PanelImperativeHandle,
+} from "react-resizable-panels";
+import {
+  buildOpenLayout,
+  PANEL_DEFAULT,
+  type PanelId,
+} from "@/components/workspace-layout";
 import {
   BellIcon,
   Blocks,
@@ -403,17 +411,28 @@ const LayoutRightIcon = ({ active }: { active?: boolean }) => (
 );
 
 export default function Page() {
-  // Layout panel open states
-  const [isExplorerOpen, setIsExplorerOpen] = useState(true);
-  const [isChatPanelOpen, setIsChatPanelOpen] = useState(true);
-  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
-  const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+  // Layout panel open states. These mirror the actual panel sizes: dragging a
+  // panel fully closed/open flips the matching toggle, and vice versa.
+  const [openState, setOpenState] = useState<Record<PanelId, boolean>>(() => ({
+    explorer: true,
+    chat: true,
+    artifact: true,
+    terminal: false,
+  }));
   const [activeActivityTab, setActiveActivityTab] = useState<string>("explorer");
 
-  // Group refs for controlled layout toggles
+  const isExplorerOpen = openState.explorer;
+  const isChatPanelOpen = openState.chat;
+  const isArtifactOpen = openState.artifact;
+  const isTerminalOpen = openState.terminal;
+
+  // Group refs (outer row + code/terminal column) and per-panel refs for toggles.
   const outerGroupRef = useRef<GroupImperativeHandle | null>(null);
-  const leftInnerGroupRef = useRef<GroupImperativeHandle | null>(null);
-  const rightInnerGroupRef = useRef<GroupImperativeHandle | null>(null);
+  const codeGroupRef = useRef<GroupImperativeHandle | null>(null);
+  const explorerPanelRef = useRef<PanelImperativeHandle | null>(null);
+  const chatPanelRef = useRef<PanelImperativeHandle | null>(null);
+  const codePanelRef = useRef<PanelImperativeHandle | null>(null);
+  const terminalPanelRef = useRef<PanelImperativeHandle | null>(null);
 
   // Command Dropdown State (Direct anchored dropdown from centered top search bar)
   const [isCommandOpen, setIsCommandOpen] = useState(false);
@@ -460,107 +479,48 @@ export default function Page() {
     }
   }, []);
 
-  // Header layout toggles: flip state and apply exact default layouts via group refs
-  const applyLayout = useCallback((next: {
-    isExplorerOpen: boolean;
-    isChatPanelOpen: boolean;
-    isRightPanelOpen: boolean;
-    isTerminalOpen: boolean;
-  }) => {
-    const outer = outerGroupRef.current;
-    const leftInner = leftInnerGroupRef.current;
-    const rightInner = rightInnerGroupRef.current;
-    if (!outer || !leftInner || !rightInner) return;
+  // Toggles: flip a panel's state. Closing collapses it; opening builds the row
+  // afresh from current sizes via `buildOpenLayout`. Imperative panel calls run
+  // in the event handler (never inside a setState updater, which React may
+  // invoke during render).
+  const togglePanel = useCallback(
+    (panel: PanelId, ref: React.RefObject<PanelImperativeHandle | null>, onOpen?: () => void) => {
+      const open = !openState[panel];
+      if (open) onOpen?.();
+      else ref.current?.collapse();
+      setOpenState((s) => ({ ...s, [panel]: open }));
+    },
+    [openState]
+  );
 
-    // Outer layout: when chat is closed, right panel claims chat's space.
-    // Explorer keeps its absolute default share (12.5%) so nothing shrinks it.
-    const EXPLORER_ABSOLUTE = 12.5;
-    let outerLayout;
-    if (!next.isRightPanelOpen) {
-      outerLayout = { "left-group": 100, "right-group": 0 };
-    } else if (next.isChatPanelOpen) {
-      outerLayout = { "left-group": 50, "right-group": 50 };
-    } else if (next.isExplorerOpen) {
-      outerLayout = {
-        "left-group": EXPLORER_ABSOLUTE,
-        "right-group": 100 - EXPLORER_ABSOLUTE,
-      };
-    } else {
-      outerLayout = { "left-group": 0, "right-group": 100 };
-    }
-    outer.setLayout(outerLayout);
-
-    const explorerTarget = next.isChatPanelOpen
-      ? next.isExplorerOpen
-        ? 25
-        : 0
-      : next.isExplorerOpen
-      ? 100
-      : 0;
-    const chatTarget = next.isChatPanelOpen
-      ? next.isExplorerOpen
-        ? 75
-        : 100
-      : 0;
-    leftInner.setLayout({ explorer: explorerTarget, chat: chatTarget });
-
-    rightInner.setLayout({
-      code: next.isTerminalOpen ? 65 : 100,
-      terminal: next.isTerminalOpen ? 35 : 0,
-    });
+  const openHorizontalPanel = useCallback((panel: PanelId) => {
+    const current = outerGroupRef.current?.getLayout();
+    if (!current) return;
+    outerGroupRef.current?.setLayout(
+      buildOpenLayout(current, panel, PANEL_DEFAULT, ["explorer", "chat", "artifact"])
+    );
   }, []);
 
   const handleToggleExplorer = useCallback(() => {
-    setIsExplorerOpen((open) => {
-      const next = {
-        isExplorerOpen: !open,
-        isChatPanelOpen,
-        isRightPanelOpen,
-        isTerminalOpen,
-      };
-      applyLayout(next);
-      return !open;
-    });
-  }, [isChatPanelOpen, isRightPanelOpen, isTerminalOpen, applyLayout]);
+    togglePanel("explorer", explorerPanelRef, () => openHorizontalPanel("explorer"));
+  }, [togglePanel, openHorizontalPanel]);
 
   const handleToggleChatPanel = useCallback(() => {
-    setIsChatPanelOpen((open) => {
-      const next = {
-        isExplorerOpen,
-        isChatPanelOpen: !open,
-        isRightPanelOpen,
-        isTerminalOpen,
-      };
-      applyLayout(next);
-      return !open;
-    });
-  }, [isExplorerOpen, isRightPanelOpen, isTerminalOpen, applyLayout]);
+    togglePanel("chat", chatPanelRef, () => openHorizontalPanel("chat"));
+  }, [togglePanel, openHorizontalPanel]);
 
-  const handleToggleRightPanel = useCallback(() => {
-    setIsRightPanelOpen((open) => {
-      const next = {
-        isExplorerOpen,
-        isChatPanelOpen,
-        isRightPanelOpen: !open,
-        isTerminalOpen,
-      };
-      applyLayout(next);
-      return !open;
-    });
-  }, [isExplorerOpen, isChatPanelOpen, isTerminalOpen, applyLayout]);
+  const handleToggleArtifact = useCallback(() => {
+    togglePanel("artifact", codePanelRef, () => openHorizontalPanel("artifact"));
+  }, [togglePanel, openHorizontalPanel]);
 
   const handleToggleTerminal = useCallback(() => {
-    setIsTerminalOpen((open) => {
-      const next = {
-        isExplorerOpen,
-        isChatPanelOpen,
-        isRightPanelOpen,
-        isTerminalOpen: !open,
-      };
-      applyLayout(next);
-      return !open;
-    });
-  }, [isExplorerOpen, isChatPanelOpen, isRightPanelOpen, applyLayout]);
+    togglePanel("terminal", terminalPanelRef, () => terminalPanelRef.current?.expand());
+  }, [togglePanel]);
+
+  // Called by the layout when a drag (or release snap) opens/closes a panel.
+  const handleOpenStateChange = useCallback((panel: PanelId, isOpen: boolean) => {
+    setOpenState((s) => (s[panel] === isOpen ? s : { ...s, [panel]: isOpen }));
+  }, []);
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground select-none">
@@ -1072,13 +1032,13 @@ export default function Page() {
                     size="icon"
                     className={cn(
                       "size-5.5 rounded-sm p-0 text-muted-foreground hover:text-foreground hover:bg-accent",
-                      isRightPanelOpen && "bg-accent/90 text-foreground"
+                      isArtifactOpen && "bg-accent/90 text-foreground"
                     )}
-                    onClick={handleToggleRightPanel}
+                    onClick={handleToggleArtifact}
                   />
                 }
               >
-                <LayoutRightIcon active={isRightPanelOpen} />
+                <LayoutRightIcon active={isArtifactOpen} />
               </TooltipTrigger>
               <TooltipContent side="bottom">
                 Toggle Editor Panel
@@ -1304,13 +1264,17 @@ export default function Page() {
             openTabs={openTabs}
             setOpenTabs={setOpenTabs}
             outerGroupRef={outerGroupRef}
-            leftInnerGroupRef={leftInnerGroupRef}
-            rightInnerGroupRef={rightInnerGroupRef}
-            isExplorerOpen={isExplorerOpen}
-            isChatPanelOpen={isChatPanelOpen}
-            isRightPanelOpen={isRightPanelOpen}
-            isTerminalOpen={isTerminalOpen}
+            codeGroupRef={codeGroupRef}
+            openState={openState}
+            onOpenStateChange={handleOpenStateChange}
+            explorerPanelRef={explorerPanelRef}
+            chatPanelRef={chatPanelRef}
+            codePanelRef={codePanelRef}
+            terminalPanelRef={terminalPanelRef}
             onToggleExplorer={handleToggleExplorer}
+            onToggleChat={handleToggleChatPanel}
+            onToggleArtifact={handleToggleArtifact}
+            onToggleTerminal={handleToggleTerminal}
           />
         </div>
       </div>
