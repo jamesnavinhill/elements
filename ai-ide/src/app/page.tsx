@@ -8,9 +8,8 @@ import {
   type PanelImperativeHandle,
 } from "react-resizable-panels";
 import {
-  buildOpenLayout,
-  PANEL_DEFAULT,
   type PanelId,
+  type TerminalDockMode,
 } from "@/components/workspace-layout";
 import {
   BellIcon,
@@ -426,13 +425,14 @@ export default function Page() {
   const isArtifactOpen = openState.artifact;
   const isTerminalOpen = openState.terminal;
 
-  // Group refs (outer row + code/terminal column) and per-panel refs for toggles.
+  // Panel refs
   const outerGroupRef = useRef<GroupImperativeHandle | null>(null);
-  const codeGroupRef = useRef<GroupImperativeHandle | null>(null);
   const explorerPanelRef = useRef<PanelImperativeHandle | null>(null);
   const chatPanelRef = useRef<PanelImperativeHandle | null>(null);
   const codePanelRef = useRef<PanelImperativeHandle | null>(null);
   const terminalPanelRef = useRef<PanelImperativeHandle | null>(null);
+
+  const [terminalDockMode, setTerminalDockMode] = useState<TerminalDockMode>("artifact");
 
   // Command Dropdown State (Direct anchored dropdown from centered top search bar)
   const [isCommandOpen, setIsCommandOpen] = useState(false);
@@ -479,43 +479,49 @@ export default function Page() {
     }
   }, []);
 
-  // Toggles: flip a panel's state. Closing collapses it; opening builds the row
-  // afresh from current sizes via `buildOpenLayout`. Imperative panel calls run
-  // in the event handler (never inside a setState updater, which React may
-  // invoke during render).
+  // Toggles: flip a panel's state.
   const togglePanel = useCallback(
-    (panel: PanelId, ref: React.RefObject<PanelImperativeHandle | null>, onOpen?: () => void) => {
+    (panel: PanelId, ref: React.RefObject<PanelImperativeHandle | null>) => {
       const open = !openState[panel];
-      if (open) onOpen?.();
-      else ref.current?.collapse();
+      if (open) {
+        ref.current?.expand();
+      } else {
+        ref.current?.collapse();
+      }
       setOpenState((s) => ({ ...s, [panel]: open }));
     },
     [openState]
   );
 
-  const openHorizontalPanel = useCallback((panel: PanelId) => {
-    const current = outerGroupRef.current?.getLayout();
-    if (!current) return;
-    outerGroupRef.current?.setLayout(
-      buildOpenLayout(current, panel, PANEL_DEFAULT, ["explorer", "chat", "artifact"])
-    );
-  }, []);
-
   const handleToggleExplorer = useCallback(() => {
-    togglePanel("explorer", explorerPanelRef, () => openHorizontalPanel("explorer"));
-  }, [togglePanel, openHorizontalPanel]);
+    togglePanel("explorer", explorerPanelRef);
+  }, [togglePanel]);
+
+  const handleSidebarIconClick = useCallback(
+    (tab: string) => {
+      if (activeActivityTab === tab) {
+        handleToggleExplorer();
+      } else {
+        setActiveActivityTab(tab);
+        if (!openState.explorer) {
+          handleToggleExplorer();
+        }
+      }
+    },
+    [activeActivityTab, openState.explorer, handleToggleExplorer]
+  );
 
   const handleToggleChatPanel = useCallback(() => {
-    togglePanel("chat", chatPanelRef, () => openHorizontalPanel("chat"));
-  }, [togglePanel, openHorizontalPanel]);
+    togglePanel("chat", chatPanelRef);
+  }, [togglePanel]);
 
   const handleToggleArtifact = useCallback(() => {
-    togglePanel("artifact", codePanelRef, () => openHorizontalPanel("artifact"));
-  }, [togglePanel, openHorizontalPanel]);
+    togglePanel("artifact", codePanelRef);
+  }, [togglePanel]);
 
   const handleToggleTerminal = useCallback(() => {
-    togglePanel("terminal", terminalPanelRef, () => terminalPanelRef.current?.expand());
-  }, [togglePanel]);
+    setOpenState((s) => ({ ...s, terminal: !s.terminal }));
+  }, []);
 
   // Called by the layout when a drag (or release snap) opens/closes a panel.
   const handleOpenStateChange = useCallback((panel: PanelId, isOpen: boolean) => {
@@ -1051,8 +1057,23 @@ export default function Page() {
       {/* 2. MIDDLE WORKSPACE: Activity Bar + Resizable Workspace */}
       <div className="flex flex-1 w-full overflow-hidden min-h-0">
         {/* Left Activity Bar */}
-        <div className="flex w-11 shrink-0 flex-col justify-between items-center border-r border-border/60 bg-muted/25 py-2 z-10">
-          <div className="flex flex-col items-center gap-1">
+        <div
+          className="flex w-11 shrink-0 flex-col justify-between items-center border-r border-border/60 bg-muted/25 py-2 z-10 select-none cursor-pointer"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              handleToggleExplorer();
+            }
+          }}
+          title={isExplorerOpen ? "Click empty space to collapse Explorer" : "Click to expand Explorer"}
+        >
+          <div
+            className="flex flex-col items-center gap-1 w-full"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                handleToggleExplorer();
+              }
+            }}
+          >
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -1069,7 +1090,7 @@ export default function Page() {
                         activeActivityTab === "explorer" &&
                         "text-foreground bg-accent/80 font-medium"
                     )}
-                    onClick={() => setActiveActivityTab("explorer")}
+                    onClick={() => handleSidebarIconClick("explorer")}
                   />
                 }
               >
@@ -1086,17 +1107,25 @@ export default function Page() {
                 render={
                   <Button
                     variant={
-                      isChatPanelOpen && activeActivityTab === "search"
+                      isExplorerOpen && activeActivityTab === "search"
                         ? "secondary"
                         : "ghost"
                     }
                     size="icon"
-                    className="size-7.5 rounded-md text-muted-foreground hover:text-foreground"
-                    onClick={() => setActiveActivityTab("search")}
+                    className={cn(
+                      "size-7.5 rounded-md relative text-muted-foreground hover:text-foreground",
+                      isExplorerOpen &&
+                        activeActivityTab === "search" &&
+                        "text-foreground bg-accent/80 font-medium"
+                    )}
+                    onClick={() => handleSidebarIconClick("search")}
                   />
                 }
               >
                 <Search className="size-4" />
+                {isExplorerOpen && activeActivityTab === "search" && (
+                  <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-primary" />
+                )}
               </TooltipTrigger>
               <TooltipContent side="right">Search</TooltipContent>
             </Tooltip>
@@ -1106,17 +1135,25 @@ export default function Page() {
                 render={
                   <Button
                     variant={
-                      isChatPanelOpen && activeActivityTab === "git"
+                      isExplorerOpen && activeActivityTab === "git"
                         ? "secondary"
                         : "ghost"
                     }
                     size="icon"
-                    className="size-7.5 rounded-md text-muted-foreground hover:text-foreground"
-                    onClick={() => setActiveActivityTab("git")}
+                    className={cn(
+                      "size-7.5 rounded-md relative text-muted-foreground hover:text-foreground",
+                      isExplorerOpen &&
+                        activeActivityTab === "git" &&
+                        "text-foreground bg-accent/80 font-medium"
+                    )}
+                    onClick={() => handleSidebarIconClick("git")}
                   />
                 }
               >
                 <GitBranch className="size-4" />
+                {isExplorerOpen && activeActivityTab === "git" && (
+                  <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-primary" />
+                )}
               </TooltipTrigger>
               <TooltipContent side="right">Source Control</TooltipContent>
             </Tooltip>
@@ -1126,23 +1163,40 @@ export default function Page() {
                 render={
                   <Button
                     variant={
-                      isChatPanelOpen && activeActivityTab === "extensions"
+                      isExplorerOpen && activeActivityTab === "extensions"
                         ? "secondary"
                         : "ghost"
                     }
                     size="icon"
-                    className="size-7.5 rounded-md text-muted-foreground hover:text-foreground"
-                    onClick={() => setActiveActivityTab("extensions")}
+                    className={cn(
+                      "size-7.5 rounded-md relative text-muted-foreground hover:text-foreground",
+                      isExplorerOpen &&
+                        activeActivityTab === "extensions" &&
+                        "text-foreground bg-accent/80 font-medium"
+                    )}
+                    onClick={() => handleSidebarIconClick("extensions")}
                   />
                 }
               >
                 <Blocks className="size-4" />
+                {isExplorerOpen && activeActivityTab === "extensions" && (
+                  <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-primary" />
+                )}
               </TooltipTrigger>
               <TooltipContent side="right">Extensions</TooltipContent>
             </Tooltip>
           </div>
 
-          <div className="flex flex-col items-center gap-1">
+          {/* Dedicated clickable middle empty space in sidebar */}
+          <div
+            className="flex-1 w-full min-h-8 cursor-pointer"
+            onClick={handleToggleExplorer}
+          />
+
+          <div
+            className="flex flex-col items-center gap-1"
+            onClick={(e) => e.stopPropagation()}
+          >
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
@@ -1264,7 +1318,6 @@ export default function Page() {
             openTabs={openTabs}
             setOpenTabs={setOpenTabs}
             outerGroupRef={outerGroupRef}
-            codeGroupRef={codeGroupRef}
             openState={openState}
             onOpenStateChange={handleOpenStateChange}
             explorerPanelRef={explorerPanelRef}
@@ -1275,6 +1328,8 @@ export default function Page() {
             onToggleChat={handleToggleChatPanel}
             onToggleArtifact={handleToggleArtifact}
             onToggleTerminal={handleToggleTerminal}
+            terminalDockMode={terminalDockMode}
+            onTerminalDockModeChange={setTerminalDockMode}
           />
         </div>
       </div>

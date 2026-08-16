@@ -20,6 +20,7 @@ import {
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { CodeBlock } from "@/components/ai-elements/code-block";
+import { PanelOptionsMenu } from "@/components/ai-elements/panel-options-menu";
 import type { MockFile } from "@/app/page";
 
 function findFileByPath(
@@ -57,8 +58,8 @@ export function CodePanel({
 
   return (
     <>
-      <div className="flex h-8 shrink-0 items-center justify-between border-b border-border/60 bg-muted/20 px-0">
-        <div className="flex items-center overflow-x-auto min-w-0 scrollbar-none h-full">
+      <div className="flex h-8 shrink-0 items-center justify-between border-b border-border/60 bg-muted/20 px-0 min-w-0 gap-1">
+        <div className="flex items-center overflow-x-auto min-w-0 scrollbar-none h-full flex-1">
           {openTabs.map((tabPath) => {
             const tabFile = findFileByPath(tabPath, files);
             const fileName = tabFile ? tabFile.name : tabPath;
@@ -68,7 +69,7 @@ export function CodePanel({
                 key={tabPath}
                 onClick={() => setSelectedPath(tabPath)}
                 className={cn(
-                  "group flex h-full items-center gap-2 px-3 text-xs font-mono cursor-pointer border-r border-border/40 transition-colors select-none",
+                  "group flex h-full items-center gap-2 px-3 text-xs font-mono cursor-pointer border-r border-border/40 transition-colors select-none shrink-0",
                   isSelected
                     ? "bg-background text-foreground font-medium border-t-2 border-t-primary/70"
                     : "bg-muted/10 text-muted-foreground hover:bg-muted/30 hover:text-foreground border-t-2 border-t-transparent"
@@ -88,7 +89,7 @@ export function CodePanel({
           })}
         </div>
 
-        <div className="flex items-center gap-0.5 px-2 shrink-0">
+        <div className="flex items-center gap-0.5 px-2 shrink-0 ml-auto">
           <Tooltip>
             <TooltipTrigger
               render={
@@ -139,6 +140,7 @@ export function CodePanel({
             </TooltipTrigger>
             <TooltipContent side="bottom">Copy Code</TooltipContent>
           </Tooltip>
+          <PanelOptionsMenu className="size-6" />
         </div>
       </div>
 

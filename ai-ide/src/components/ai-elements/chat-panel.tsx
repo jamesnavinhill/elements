@@ -2,27 +2,12 @@
 
 import { useState, useCallback } from "react";
 import {
-  Archive,
-  FileTextIcon,
-  Hash,
   ListTodoIcon,
-  MoreHorizontal,
-  Plus,
-  Save,
   Sparkles,
-  Trash2,
 } from "lucide-react";
 import { nanoid } from "nanoid";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { PanelOptionsMenu } from "@/components/ai-elements/panel-options-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -188,18 +173,18 @@ export function ChatPanel() {
 
   return (
     <>
-      <div className="flex h-8 shrink-0 items-center justify-between border-b border-border/50 bg-muted/20 px-3">
-        <div className="flex items-center gap-2">
-          <Sparkles className="size-3.5 text-primary" />
-          <span className="text-xs font-semibold text-foreground">
+      <div className="flex h-8 shrink-0 items-center justify-between border-b border-border/50 bg-muted/20 px-3 gap-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+          <Sparkles className="size-3.5 text-primary shrink-0" />
+          <span className="text-xs font-semibold text-foreground truncate min-w-0">
             AI Assistant
           </span>
-          <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-mono text-primary">
+          <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-mono text-primary shrink-0 hidden sm:inline-block">
             Active
           </span>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0 ml-auto">
           <Tooltip>
             <TooltipTrigger
               render={
@@ -224,109 +209,7 @@ export function ChatPanel() {
             </TooltipContent>
           </Tooltip>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-6 rounded p-0 text-muted-foreground hover:text-foreground"
-                  title="Thread Options"
-                >
-                  <MoreHorizontal className="size-3.5" />
-                </Button>
-              }
-            />
-            <DropdownMenuContent align="end" className="w-52 text-xs">
-              <DropdownMenuGroup>
-                <DropdownMenuItem
-                  onClick={() => {
-                    const newId = `th_${nanoid(8)}`;
-                    setThreadId(newId);
-                    setMessages([]);
-                    toast.add({
-                      title: "New Thread created",
-                      description: `Thread ID: ${newId}`,
-                    });
-                  }}
-                >
-                  <Plus className="size-3.5 mr-2 text-muted-foreground" />
-                  New Thread
-                  <DropdownMenuShortcut>Ctrl+Shift+O</DropdownMenuShortcut>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() =>
-                    toast.add({
-                      title: "Thread Saved",
-                      description: `Saved session (${messages.length} messages)`,
-                    })
-                  }
-                >
-                  <Save className="size-3.5 mr-2 text-muted-foreground" />
-                  Save Thread
-                  <DropdownMenuShortcut>Ctrl+S</DropdownMenuShortcut>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    const md = messages
-                      .map(
-                        (m) =>
-                          `**${m.from === "user" ? "User" : "Assistant"}**:\n${m.content}\n`
-                      )
-                      .join("\n---\n\n");
-                    navigator.clipboard.writeText(md || "# Empty Thread");
-                    toast.add({
-                      title: "Copied as Markdown",
-                      description: `${messages.length} messages copied to clipboard`,
-                    });
-                  }}
-                >
-                  <FileTextIcon className="size-3.5 mr-2 text-muted-foreground" />
-                  Copy as Markdown
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    navigator.clipboard.writeText(threadId);
-                    toast.add({
-                      title: "Thread ID Copied",
-                      description: threadId,
-                    });
-                  }}
-                >
-                  <Hash className="size-3.5 mr-2 text-muted-foreground" />
-                  Copy Thread ID
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() =>
-                    toast.add({
-                      title: "Thread Archived",
-                      description: `Thread ${threadId} moved to archive`,
-                    })
-                  }
-                >
-                  <Archive className="size-3.5 mr-2 text-muted-foreground" />
-                  Archive Thread
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => {
-                    setMessages([]);
-                    toast.add({
-                      title: "Thread Deleted",
-                      description: "Conversation history cleared",
-                    });
-                  }}
-                >
-                  <Trash2 className="size-3.5 mr-2" />
-                  Delete Thread
-                  <DropdownMenuShortcut>Del</DropdownMenuShortcut>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <PanelOptionsMenu className="size-6" />
         </div>
       </div>
 

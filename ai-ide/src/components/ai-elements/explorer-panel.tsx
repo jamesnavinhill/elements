@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   FilePlus,
   FolderPlus,
-  ChevronLeft,
   Search,
   GitBranch,
   Blocks,
@@ -27,6 +26,7 @@ import {
   FileTreeFile,
   FileTreeFolder,
 } from "@/components/ai-elements/file-tree";
+import { PanelOptionsMenu } from "@/components/ai-elements/panel-options-menu";
 
 interface ExplorerPanelProps {
   activeTab?: string;
@@ -36,8 +36,6 @@ interface ExplorerPanelProps {
 
 export function ExplorerPanel({
   activeTab = "explorer",
-  isCollapsed,
-  onToggleCollapse,
 }: ExplorerPanelProps) {
   const [selectedPath, setSelectedPath] = useState<string>("src/app.tsx");
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(
@@ -145,14 +143,14 @@ export function ExplorerPanel({
 
   return (
     <>
-      <div className="flex h-8 shrink-0 items-center justify-between border-b border-border/50 px-2.5 bg-muted/20">
-        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+      <div className="flex h-8 shrink-0 items-center justify-between border-b border-border/50 px-2.5 bg-muted/20 gap-2 min-w-0">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground truncate min-w-0">
           {activeTab === "explorer" && "Explorer"}
           {activeTab === "search" && "Search"}
           {activeTab === "git" && "Source Control"}
           {activeTab === "extensions" && "Extensions"}
         </span>
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5 shrink-0 ml-auto">
           {activeTab === "explorer" && (
             <>
               <Button
@@ -185,20 +183,7 @@ export function ExplorerPanel({
               </Button>
             </>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-5 text-muted-foreground hover:text-foreground"
-            title={isCollapsed ? "Expand Explorer" : "Collapse Explorer"}
-            onClick={onToggleCollapse}
-          >
-            <ChevronLeft
-              className={cn(
-                "size-3 transition-transform",
-                isCollapsed && "-rotate-180"
-              )}
-            />
-          </Button>
+          <PanelOptionsMenu className="size-5" />
         </div>
       </div>
 
