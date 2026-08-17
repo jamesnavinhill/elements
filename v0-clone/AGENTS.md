@@ -1,3 +1,11 @@
+## Code search
+
+You are operating in an environment where ast-grep is installed. For any code
+search that requires understanding of syntax or code structure, default to
+`ast-grep --lang <language> -p '<pattern>'`, adjusting `--lang` for the target
+language. Avoid text-only search tools unless a plain-text search is
+explicitly requested.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
